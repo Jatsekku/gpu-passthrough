@@ -4,7 +4,7 @@ set +o errexit
 # Source logger module
 # shellcheck disable=SC1090,SC1091
 source "${BASH_LOGGER_SH}"
-logger_register_module "gpu-passthrough" LOG_LEVEL_ALL
+logger_register_module "gpu-passthrough::pci" LOG_LEVEL_ALL
 logger_set_log_format "%F %T (%mod_name) {%pid} %file:%line [%cs%lvl%ce] %msg"
 
 # Source common module
