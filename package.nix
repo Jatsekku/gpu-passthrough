@@ -6,15 +6,17 @@
 let
   bash-logger-scriptPath = bash-logger.passthru.scriptPath;
   gpu-passthrough-common-scriptPath = ./src/common.sh;
-  gpu-passthrough-pci-scriptContent = builtins.readFile ./src/pci.sh;
+  gpu-passthrough-hooks-scriptContent = builtins.readFile ./src/hooks.sh;
+  gpu-passthrough-pci-scriptPath = ./src/pci.sh;
 in
 pkgs.writeShellApplication {
-  name = "pci-passthrough";
+  name = "gpu-passthrough";
   text = ''
     export BASH_LOGGER_SH=${bash-logger-scriptPath}
     export COMMON_SH=${gpu-passthrough-common-scriptPath}
+    export PCI_SH=${gpu-passthrough-pci-scriptPath}
 
-    ${gpu-passthrough-pci-scriptContent}
+    ${gpu-passthrough-hooks-scriptContent}
   '';
   runtimeInputs = [
     pkgs.gawk

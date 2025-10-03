@@ -16,7 +16,7 @@ readonly PCI_DEVICES_PATH="${PCI_PATH}/devices"
 readonly PCI_DRIVERS_PATH="${PCI_PATH}/drivers"
 
 # Unbind "classic" driver
-__unbind_pci_driver_by_addres() {
+unbind_pci_driver_by_addres() {
     local -r device_address="$1"
 
     local -r device_name=$(get_device_name_by_address "$device_address")
@@ -62,7 +62,7 @@ __unbind_pci_driver_by_addres() {
 }
 
 # Register driver with dynamic device ID support
-__register_pci_driver_by_address() {
+register_pci_driver_by_address() {
     local -r device_address="$1"
     local -r driver_name="$2"
 
@@ -106,7 +106,7 @@ __register_pci_driver_by_address() {
 }
 
 # Unregister driver with dynamic device ID support
-__unregister_pci_driver_by_address() {
+unregister_pci_driver_by_address() {
     local -r device_address="$1"
     local -r driver_name="$2"
 
@@ -149,7 +149,7 @@ __unregister_pci_driver_by_address() {
     #TODO: Check if successful
 }
 
-__remove_pci_device_by_address() {
+remove_pci_device_by_address() {
     local -r device_address="$1"
 
     local -r device_name=$(get_device_name_by_address "$device_address")
@@ -173,7 +173,7 @@ __remove_pci_device_by_address() {
     #TODO: Check if remove was succesfull
 }
 
-__rescan_pci_devices() {
+rescan_pci_devices() {
     log_inf "Rescanning PCI devices..."
 
     echo "1" > "${PCI_PATH}/rescan"

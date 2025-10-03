@@ -9,11 +9,15 @@ source "${BASH_LOGGER_SH}"
 logger_register_module "gpu-passthrough::hooks" LOG_LEVEL_ALL
 logger_set_log_format "%F %T (%mod_name) {%pid} %file:%line [%cs%lvl%ce] %msg"
 
+# Source pci module
+# shellcheck disable=SC1090,SC1091
+source "${PCI_SH}"
+
 __pass_pci_devices_by_list_name() {
     local -r list_name="$1"
 
     # list_name has to be non-empty string
-    if __is_arg_empty "$list_name"; then
+    if is_arg_empty "$list_name"; then
         log_err "Devices list name is empty"
         return 1
     fi
@@ -28,13 +32,13 @@ __pass_pci_devices_by_list_name() {
     # Unbind all devices in list
     for line in "${devices_list[@]}"; do
         read -r address _ <<<"$line"
-        __unbind_pci_driver_by_addres "$address"
+        unbind_pci_driver_by_addres "$address"
     done
 
     # Register all devices in list
     for line in "${devices_list[@]}"; do
         read -r address driver <<<"$line"
-        __register_pci_driver_by_address "$address" "$driver"
+        register_pci_driver_by_address "$address" "$driver"
     done
 }
 
@@ -42,7 +46,7 @@ __unpass_pci_devices_by_list_name() {
     local -r list_name="$1"
 
     # list_name has to be non-empty string
-    if __is_arg_empty "$list_name"; then
+    if is_arg_empty "$list_name"; then
         log_err "Devices list name is empty"
         return 1
     fi
@@ -57,16 +61,16 @@ __unpass_pci_devices_by_list_name() {
     # Unregister all devices in list
     for line in "${devices_list[@]}"; do
         read -r address driver <<<"$line"
-        __unregister_pci_driver_by_address "$address" "$driver"
+        unregister_pci_driver_by_address "$address" "$driver"
     done
 
     # Remove all devices in list
     for line in "${devices_list[@]}"; do
         read -r address _ <<<"$line"
-        __remove_pci_device_by_address "$address"
+        remove_pci_device_by_address "$address"
     done
 
-    __rescan_pci_devices
+    rescan_pci_devices
 }
 
 handle_pci_devices_by_list_name() {
