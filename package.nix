@@ -8,6 +8,7 @@ let
   gpu-passthrough-common-scriptPath = ./src/common.sh;
   gpu-passthrough-hooks-scriptContent = builtins.readFile ./src/hooks.sh;
   gpu-passthrough-pci-scriptPath = ./src/pci.sh;
+  gpu-passthrough-virsh-scriptPath = ./src/virsh.sh;
 
   logFilePath = "/var/log/gpu-passthrough/gpu-passthrough.log";
 in
@@ -17,6 +18,7 @@ pkgs.writeShellApplication {
     export BASH_LOGGER_SH=${bash-logger-scriptPath}
     export COMMON_SH=${gpu-passthrough-common-scriptPath}
     export PCI_SH=${gpu-passthrough-pci-scriptPath}
+    export VIRSH_SH=${gpu-passthrough-virsh-scriptPath}
 
     export LOG_FILE_PATH=${logFilePath}
 
