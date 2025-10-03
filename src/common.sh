@@ -1,6 +1,12 @@
 #!/run/current-system/sw/bin/bash
 set +o errexit
 
+# Prevent multiple sourcing
+if [ -n "${__GPU_PASSTHROUGH_COMMON_SH_SOURCED:-}" ]; then
+    return
+fi
+readonly __GPU_PASSTHROUGH_COMMON_SH_SOURCED=1
+
 # Source logger module
 # shellcheck disable=SC1090,SC1091
 source "${BASH_LOGGER_SH}"
