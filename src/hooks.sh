@@ -8,6 +8,7 @@ readonly JSON_RULES_PATH="/etc/gpu-passthrough/pci-passthrough.json"
 source "${BASH_LOGGER_SH}"
 logger_register_module "gpu-passthrough::hooks" LOG_LEVEL_ALL
 logger_set_log_format "%F %T (%mod_name) {%pid} %file:%line [%cs%lvl%ce] %msg"
+logger_set_log_file "$LOG_FILE_PATH"
 
 # Source pci module
 # shellcheck disable=SC1090,SC1091
