@@ -20,7 +20,7 @@ readonly JSON_RULES_PATH="/etc/gpu-passthrough/pci-passthrough.json"
 __unbind_pci_driver_by_addres() {
     local -r device_address="$1"
 
-    local -r device_name=$(__get_device_name_by_address "$device_address")
+    local -r device_name=$(get_device_name_by_address "$device_address")
     
     local msg
     # device_path file has to exist
@@ -42,7 +42,7 @@ __unbind_pci_driver_by_addres() {
     fi
 
     local driver_name 
-    driver_name=$(__get_driver_name_by_symlink "$driver_symlink")
+    driver_name=$(get_driver_name_by_symlink "$driver_symlink")
 
     msg="Unbinding device [PCI: ${device_address}] [${device_name}]"
     msg+=" from driver [${driver_name}] ..."
@@ -50,7 +50,7 @@ __unbind_pci_driver_by_addres() {
 
     echo "$device_address" > "${driver_symlink}/unbind"
 
-    driver_name=$(__get_driver_name_by_symlink "$driver_symlink")
+    driver_name=$(get_driver_name_by_symlink "$driver_symlink")
     if [[ "unknown" == "$driver_name" ]]; then
         log_inf "Device succesfully unbinded from driver"
         return 0
@@ -67,7 +67,7 @@ __register_pci_driver_by_address() {
     local -r device_address="$1"
     local -r driver_name="$2"
 
-    local -r device_name=$(__get_device_name_by_address "$device_address")
+    local -r device_name=$(get_device_name_by_address "$device_address")
 
     local msg
 
@@ -89,7 +89,7 @@ __register_pci_driver_by_address() {
 
     # Obtaining device_vendev has to be successful  
     local device_vendev
-    if ! device_vendev=$(__get_device_vendev_by_path "$device_path"); then
+    if ! device_vendev=$(get_device_vendev_by_path "$device_path"); then
         msg="Failed to obtain VenDevID for device"
         msg+=" [PCI: ${device_address}] [${device_name}]"
         log_err "$msg"
@@ -111,7 +111,7 @@ __unregister_pci_driver_by_address() {
     local -r device_address="$1"
     local -r driver_name="$2"
 
-    local -r device_name=$(__get_device_name_by_address "$device_address")
+    local -r device_name=$(get_device_name_by_address "$device_address")
 
     local msg
 
@@ -133,7 +133,7 @@ __unregister_pci_driver_by_address() {
 
     # Obtaining device_vendev has to be successful  
     local device_vendev
-    if ! device_vendev=$(__get_device_vendev_by_path "$device_path"); then
+    if ! device_vendev=$(get_device_vendev_by_path "$device_path"); then
         msg="Failed to obtain VenDevID for device"
         msg+=" [PCI: ${device_address}] [${device_name}]"
         log_err "$msg"
@@ -153,7 +153,7 @@ __unregister_pci_driver_by_address() {
 __remove_pci_device_by_address() {
     local -r device_address="$1"
 
-    local -r device_name=$(__get_device_name_by_address "$device_address")
+    local -r device_name=$(get_device_name_by_address "$device_address")
 
     local msg
 
