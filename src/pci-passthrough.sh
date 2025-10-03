@@ -7,76 +7,14 @@ source "${BASH_LOGGER_SH}"
 logger_register_module "gpu-passthrough" LOG_LEVEL_ALL
 logger_set_log_format "%F %T (%mod_name) {%pid} %file:%line [%cs%lvl%ce] %msg"
 
+# Source common module
+# shellcheck disable=SC1090,SC1091
+source "${COMMON_SH}"
+
 readonly PCI_PATH="/sys/bus/pci"
 readonly PCI_DEVICES_PATH="${PCI_PATH}/devices"
 readonly PCI_DRIVERS_PATH="${PCI_PATH}/drivers"
 readonly JSON_RULES_PATH="/etc/gpu-passthrough/pci-passthrough.json"
-
-__is_arg_empty() {
-    [[ -z "$1" ]]
-}
-
-__get_device_name_by_address() {
-    local -r device_address="$1"
-    local device_name
-    device_name=$(
-        lspci -v -mm -s "$device_address" \
-        | awk -F'\t' '/^Device:/ {print $2}'
-    )
-
-    if [[ -z $device_name ]]; then
-        device_name="unknown"
-    fi
-
-    echo "$device_name"
-}
-
-__get_device_vendev_by_path() {
-    local -r device_path="$1"
-
-    # vendor_id_path file has to exist and be readable
-    local -r vendor_id_path="${device_path}/vendor"
-    if [[ ! -r "$vendor_id_path" ]]; then
-        log_err "Vendor ID file [${vendor_id_path}] not found or not readable"
-        return 1
-    fi
-
-    # vendor_id cannot empty
-    local -r vendor_id=$(<"$vendor_id_path")
-    if __is_arg_empty "$vendor_id"; then
-        log_err "Vendor ID is empty for device [${device_path}]"
-        return 1
-    fi
-
-    # device_id_path files has to exist and be readable
-    local -r device_id_path="${device_path}/device"
-    if [[ ! -r "$device_id_path" ]]; then
-        log_err "Device ID file [${device_id_path}] not found or not readable"
-        return 1
-    fi
-
-    # device_id cannot empty
-    local -r device_id=$(<"$device_id_path")
-    if __is_arg_empty "$device_id"; then
-        log_err "Device ID is empty for device [${device_path}]"
-        return 1
-    fi
-
-    echo "${vendor_id} ${device_id}"
-}
-
-__get_driver_name_by_symlink() {
-    local -r driver_symlink="$1"
-    local -r driver_path=$(readlink "$driver_symlink")
-    local driver_name
-    driver_name=$(basename "$driver_path")
-
-    if [[ -z $driver_name ]]; then
-        driver_name="unknown"
-    fi
-
-    echo "$driver_name"
-}
 
 # Unbind "classic" driver
 __unbind_pci_driver_by_addres() {
