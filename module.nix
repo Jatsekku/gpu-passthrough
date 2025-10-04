@@ -19,11 +19,26 @@ let
         default = null;
         description = "PCI device address i.e. 0000:0d:00.1";
       };
+      id = mkOption {
+        type = nullOr str;
+        default = null;
+        description = "PCI device id i.e. 10de:2482";
+      };
       passthroughDriver = mkOption {
         type = nullOr str;
         default = "vfio-pci";
         description = "Driver used after unbinding original one";
       };
+    };
+  };
+
+  devicesSetModule = submodule {
+    options = {
+      devices = mkOption {
+        type = listOf deviceModule;
+        default = [ ];
+      };
+      bindOnBoot = mkEnableOption "Bind devices during boot";
     };
   };
 
@@ -43,13 +58,20 @@ let
       unpassExe = getExe unpassDrv;
     };
 
-  devicesSetType = listOf deviceModule;
+  mkDevicesKernelParams =
+    devicesLists:
+    let
+      bootBindableDevicesLists = filterAttrs (_: devicesList: devicesList.bindOnBoot) devicesLists;
+      devices = flatten (mapAttrsToList (_: devicesList: devicesList.devices) bootBindableDevicesLists);
+      devicesIds = filter (id: id != null) (map (d: d.id) devices);
+    in
+    if devicesIds == [ ] then [ ] else [ ("vfio-pci.ids=" + lib.concatStringsSep "," devicesIds) ];
 in
 {
   options.hardware.pciPassthrough = {
     enable = mkEnableOption "PCI devices passthrough helper";
     devicesLists = mkOption {
-      type = attrsOf devicesSetType;
+      type = attrsOf devicesSetModule;
       default = { };
       description = "Set of PCI devices lists managed by PCI passthrough helper";
     };
@@ -62,12 +84,24 @@ in
   };
 
   config = mkIf cfg.enable {
-    # Enable vfio-pci kernel modules
-    boot.initrd.kernelModules = [
-      "vfio_pci"
-      "vfio"
-      "vfio_iommu_type1"
-    ];
+    boot = {
+      # Enable vfio-pci kernel modules
+      initrd.kernelModules = mkOrder 0 [
+        "vfio_pci"
+        "vfio"
+        "vfio_iommu_type1"
+      ];
+
+      # Make sure that vfio-pci is loaded before GPU driver
+      extraModprobeConfig = ''
+        softdep amdgpu pre: vfio-pci
+        softdep radeon pre: vfio-pci
+        softdep nvidia pre: vfio-pci
+      '';
+
+      # Isolate devices on boot
+      kernelParams = mkDevicesKernelParams cfg.devicesLists;
+    };
 
     # Write rules for script as JSON
     environment.etc."gpu-passthrough/pci-passthrough.json".text = builtins.toJSON cfg.devicesLists;
