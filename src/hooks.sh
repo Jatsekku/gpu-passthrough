@@ -13,6 +13,10 @@ logger_set_log_file "$LOG_FILE_PATH"
 # shellcheck disable=SC1090,SC1091
 source "${PCI_SH}"
 
+# Source virsh module
+# shellcheck disable=SC1090,SC1091
+source "${VIRSH_SH}"
+
 #------------------------------- devices list ---------------------------------
 readonly JSON_RULES_PATH="/etc/gpu-passthrough/pci-passthrough.json"
 declare -a __gpu_passthrough_global_devices_list
@@ -64,6 +68,20 @@ __pci_unpass_devices() {
     rescan_pci_devices
 }
 
+__virsh_pass_devices() {
+    for line in "${__gpu_passthrough_global_devices_list[@]}"; do
+        read -r address _ <<<"$line"
+        virsh_detach_pci_driver_by_address "$address"
+    done
+}
+
+__virsh_unpass_devices() {
+    for line in "${__gpu_passthrough_global_devices_list[@]}"; do
+        read -r address _ <<<"$line"
+        virsh_reattach_pci_driver_by_address "$address"
+    done
+}
+
 handle_pci_devices_by_list_name() {
     local -r list_name="$1"
     local -r operation="$2"
@@ -73,10 +91,10 @@ handle_pci_devices_by_list_name() {
 
     case "$operation" in
         pass)
-            __pci_pass_devices
+            __virsh_pass_devices
             ;;
         unpass)
-            __pci_unpass_devices
+            __virsh_unpass_devices
             ;;
         *)
             log_err "Unknown operation [${operation}]"
