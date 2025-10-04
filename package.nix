@@ -29,5 +29,6 @@ pkgs.writeShellApplication {
     pkgs.pciutils
     pkgs.jq
     pkgs.bash
+    pkgs.libvirt
   ];
 }
