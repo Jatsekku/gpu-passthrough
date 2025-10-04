@@ -27,6 +27,16 @@ let
     };
   };
 
+  devicesSetModule = submodule {
+    options = {
+      devices = mkOption {
+        type = listOf deviceModule;
+        default = [ ];
+      };
+      bindOnBoot = mkEnableOption "Bind devices during boot";
+    };
+  };
+
   mkDevicesListExes =
     devicesListName:
     let
@@ -43,13 +53,23 @@ let
       unpassExe = getExe unpassDrv;
     };
 
-  devicesSetType = listOf deviceModule;
+  mkDevicesKernelParams =
+    devicesLists:
+    let
+      bootBindableDevicesLists = filterAttrs (_: devicesList: devicesList.bindOnBoot) devicesLists;
+      devices = flatten (mapAttrsToList (_: devicesList: devicesList.devices) bootBindableDevicesLists);
+      devicesAddresses = unique (filter (a: a != null) (map (d: d.address) devices));
+    in
+    if devicesAddresses == [] then
+      []
+    else
+      [ "vfio-pci.ids=${lib.concatStringsSep "," devicesAddresses}" ];
 in
 {
   options.hardware.pciPassthrough = {
     enable = mkEnableOption "PCI devices passthrough helper";
     devicesLists = mkOption {
-      type = attrsOf devicesSetType;
+      type = attrsOf devicesSetModule;
       default = { };
       description = "Set of PCI devices lists managed by PCI passthrough helper";
     };
@@ -62,12 +82,17 @@ in
   };
 
   config = mkIf cfg.enable {
-    # Enable vfio-pci kernel modules
-    boot.initrd.kernelModules = [
-      "vfio_pci"
-      "vfio"
-      "vfio_iommu_type1"
-    ];
+    boot = {
+      # Enable vfio-pci kernel modules
+      initrd.kernelModules = [
+        "vfio_pci"
+        "vfio"
+        "vfio_iommu_type1"
+      ];
+
+      # Isolate devices on boot
+      kernelParams = mkDevicesKernelParams cfg.devicesLists;
+    };
 
     # Write rules for script as JSON
     environment.etc."gpu-passthrough/pci-passthrough.json".text = builtins.toJSON cfg.devicesLists;
