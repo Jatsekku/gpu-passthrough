@@ -62,6 +62,13 @@ in
   };
 
   config = mkIf cfg.enable {
+    # Enable vfio-pci kernel modules
+    boot.initrd.kernelModules = [
+      "vfio_pci"
+      "vfio"
+      "vfio_iommu_type1"
+    ];
+
     # Write rules for script as JSON
     environment.etc."gpu-passthrough/pci-passthrough.json".text = builtins.toJSON cfg.devicesLists;
   };
