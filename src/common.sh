@@ -33,10 +33,10 @@ get_device_name_by_address() {
     echo "$device_name"
 }
 
-get_gpus_ids() {
-    local gpu_ids
-    gpu_ids=$(lspci | grep -iE 'VGA|3D|video' | awk '{print $1}')
-    echo "$gpu_ids"
+get_gpus_adresses() {
+    local gpu_addresses
+    gpu_addresses=$(lspci -D | grep -iE 'VGA|3D|video' | awk '{print $1}')
+    echo "$gpu_addresses"
 }
 
 get_device_vendev_by_path() {
