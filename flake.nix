@@ -49,6 +49,14 @@
               self
               ;
           };
+        looking-glass =
+          {
+            config,
+            lib,
+            pkgs,
+            ...
+          }:
+          import ./looking-glass.nix { inherit config lib pkgs; };
         default = self.nixosModules.gpu-passthrough;
       };
 
