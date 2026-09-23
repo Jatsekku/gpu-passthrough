@@ -56,6 +56,12 @@ let
         default = { };
         description = "Permissions of underlaying shared memory for virtual display";
       };
+
+      kvmfr = mkOption {
+        type = bool;
+        default = true;
+        description = "Whether to use KVMFR for this display";
+      };
     };
   };
 
@@ -81,22 +87,36 @@ let
   # Set of displays with additional index and memory size
   displays =
     let
+      # KVMFR displays come first
       displaysNames = builtins.attrNames cfg.displays;
+      kvmfrDisplaysNames = filter (name: cfg.displays.${name}.kvmfr) displaysNames;
+      nonKvmfrDisplaysNames = filter (name: !cfg.displays.${name}.kvmfr) displaysNames;
+
+      allDisplaysNames = kvmfrDisplaysNames ++ nonKvmfrDisplaysNames;
     in
     mapAttrs (
       name: display:
       display
       // {
-        # Name comes from set so it always will be present and uniqe
-        index = lists.findFirstIndex (n: n == name) null displaysNames;
+        # Name comes from set so it always will be present and unique
+        index = lists.findFirstIndex (n: n == name) null allDisplaysNames;
         memorySize = memorySizeOfDisplay display;
       }
     ) cfg.displays;
 
-  # List of memory sizes for all displays
-  displaysMemorySizes = mapAttrsToList (_name: display: display.memorySize) displays;
+  # Two sets of displays - for enabled and disabled KVMFR
+  kvmfrDisplays = filterAttrs (_name: display: display.kvmfr) displays;
+  nonKvmfrDisplays = filterAttrs (_name: display: !display.kvmfr) displays;
 
-  # Udev rules
+  # Check if at least one display has kvmfr enabled
+  hasAnyKvmfrDisplay = kvmfrDisplays != { };
+  # Check if at least one display has kvmfr disabled
+  hasAnyNonKvmfrDisplay = nonKvmfrDisplays != { };
+
+  # List of memory sizes for KVMFR-enabled displays
+  kvmfrDisplaysMemorySizes = mapAttrsToList (_name: display: display.memorySize) kvmfrDisplays;
+
+  # Udev rules (KVMFR)
   udevPackage = pkgs.writeTextFile {
     name = "kvmfr-udev-rules";
     destination = "/etc/udev/rules.d/99-kvmfr.rules";
@@ -104,10 +124,23 @@ let
       mapAttrsToList (name: display: ''
         # Virtual display: ${name}
         SUBSYSTEM=="kvmfr", KERNEL=="kvmfr${toString display.index}", OWNER="${display.permissions.user}", GROUP="${display.permissions.group}", MODE="${display.permissions.mode}", TAG+="systemd"
-      '') displays
+      '') kvmfrDisplays
     );
   };
 
+  # Systemd tmpfiles (non-KVMFR)
+  tmpfilesPackage = pkgs.writeTextFile {
+    name = "looking-glass-tmpfiles";
+    destination = "/lib/tmpfiles.d/10-looking-glass.conf";
+    text = concatStringsSep "\n" (
+      mapAttrsToList (name: display: ''
+        # Virtual display: ${name}
+        f /dev/shm/looking-glass-${name} ${display.permissions.mode} ${display.permissions.user} ${display.permissions.group} -
+      '') nonKvmfrDisplays
+    );
+  };
+
+  # Qemu Commandline (KVMFR)
   mkNixVirtQemuCommandLineArgs =
     displayName:
     let
@@ -115,17 +148,42 @@ let
       kvmfrPath = "/dev/kvmfr${toString display.index}";
       size = "${toString (MiB2Bytes display.memorySize)}";
     in
-    [
-      { value = "-device"; }
-      { value = "{\"driver\":\"ivshmem-plain\",\"id\":\"shmem0\",\"memdev\":\"looking-glass\"}"; }
-      { value = "-object"; }
-      {
-        value = "{\"qom-type\":\"memory-backend-file\",\"id\":\"looking-glass\",\"mem-path\":\"${kvmfrPath}\",\"size\":${size},\"share\":true}";
-      }
-    ];
+    if display.kvmfr then
+      [
+        { value = "-device"; }
+        { value = "{\"driver\":\"ivshmem-plain\",\"id\":\"shmem0\",\"memdev\":\"looking-glass\"}"; }
+        { value = "-object"; }
+        {
+          value = "{\"qom-type\":\"memory-backend-file\",\"id\":\"looking-glass\",\"mem-path\":\"${kvmfrPath}\",\"size\":${size},\"share\":true}";
+        }
+      ]
+    else
+      [ ];
+
+  # Shmem (non-KVMFR)
+  mkNixVirtSharedMemory =
+    displayName:
+    let
+      display = displays.${displayName};
+      size = display.memorySize;
+    in
+    if !display.kvmfr then
+      [
+        {
+          name = "looking-glass-${displayName}";
+          model.type = "ivshmem-plain";
+          size = {
+            unit = "M";
+            count = size;
+          };
+        }
+      ]
+    else
+      [ ];
 
   mkNixVirtSettings = displayName: {
     qemuCommandLineArgs = mkNixVirtQemuCommandLineArgs displayName;
+    sharedMemory = mkNixVirtSharedMemory displayName;
   };
 
 in
@@ -146,20 +204,24 @@ in
   };
 
   config = mkIf cfg.enable {
-    boot = {
+    boot = mkIf hasAnyKvmfrDisplay {
       # Add kvmfr kernel module
       extraModulePackages = with config.boot.kernelPackages; [ kvmfr ];
       # Load kvmfr module oon boot
       kernelModules = [ "kvmfr" ];
       # Set kvmfr shared memory size for virtual displays
-      extraModprobeConfig = optionalString (displaysMemorySizes != [ ]) ''
-        options kvmfr static_size_mb=${concatStringsSep "," (map toString displaysMemorySizes)}
+      extraModprobeConfig = optionalString (kvmfrDisplaysMemorySizes != [ ]) ''
+        options kvmfr static_size_mb=${concatStringsSep "," (map toString kvmfrDisplaysMemorySizes)}
       '';
     };
 
+    # Set udev rules for shared memory of virtual displays (KVMFR)
+    services.udev.packages = optionals hasAnyKvmfrDisplay [ udevPackage ];
+
+    # Set systemd tmpfiles for shared memory of virtual displays (non-KVMFR)
+    systemd.tmpfiles.packages = optionals (nonKvmfrDisplays != { }) [ tmpfilesPackage ];
+
     # Install looking glass client
     environment.systemPackages = [ pkgs.looking-glass-client ];
-    # Set udev rules for shared memory of virtual displays
-    services.udev.packages = optionals (displays != { }) [ udevPackage ];
   };
 }
