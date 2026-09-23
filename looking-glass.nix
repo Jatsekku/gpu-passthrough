@@ -190,6 +190,7 @@ in
 {
   options.virtualisation.looking-glass = {
     enable = mkEnableOption "Looking glass";
+    enableClient = mkEnableOption "Looking Glass Client";
     displays = mkOption {
       type = attrsOf displayModule;
       default = { };
@@ -222,6 +223,6 @@ in
     systemd.tmpfiles.packages = optionals (nonKvmfrDisplays != { }) [ tmpfilesPackage ];
 
     # Install looking glass client
-    environment.systemPackages = [ pkgs.looking-glass-client ];
+    environment.systemPackages = lib.optionals cfg.enableClient [ pkgs.looking-glass-client ];
   };
 }
