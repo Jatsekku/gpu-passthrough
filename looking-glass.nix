@@ -15,7 +15,7 @@ let
       user = mkOption {
         type = str;
         default = "root";
-        description = "Owner of the shared memor";
+        description = "Owner of the shared memory";
       };
       group = mkOption {
         type = str;
@@ -157,7 +157,7 @@ in
       '';
     };
 
-    # Install lookng glass client
+    # Install looking glass client
     environment.systemPackages = [ pkgs.looking-glass-client ];
     # Set udev rules for shared memory of virtual displays
     services.udev.packages = optionals (displays != { }) [ udevPackage ];
