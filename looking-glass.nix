@@ -34,19 +34,19 @@ let
   displayModule = submodule {
     options = {
       width = mkOption {
-        type = number;
+        type = ints.positive;
         default = 1920;
         description = "Display width in pixels";
       };
 
       height = mkOption {
-        type = number;
+        type = ints.positive;
         default = 1080;
         description = "Display height in pixels";
       };
 
       bpp = mkOption {
-        type = number;
+        type = ints.positive;
         default = 4;
         description = "Bytes per pixel";
       };
