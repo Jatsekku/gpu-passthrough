@@ -186,6 +186,8 @@ let
     sharedMemory = mkNixVirtSharedMemory displayName;
   };
 
+  # Configure cgroup device ACL for QEMU to allow access to KVMFR nodes
+  kvmfrDevices = mapAttrsToList (_name: display: "/dev/kvmfr${toString display.index}") kvmfrDisplays;
 in
 {
   options.virtualisation.looking-glass = {
@@ -215,6 +217,25 @@ in
         options kvmfr static_size_mb=${concatStringsSep "," (map toString kvmfrDisplaysMemorySizes)}
       '';
     };
+
+    virtualisation.libvirtd.qemu.verbatimConfig = mkIf hasAnyKvmfrDisplay (
+      mkOptionDefault (mkAfter ''
+        cgroup_device_acl = ${
+          builtins.toJSON (
+            [
+              "/dev/full"
+              "/dev/null"
+              "/dev/ptmx"
+              "/dev/random"
+              "/dev/urandom"
+              "/dev/userfaultfd"
+              "/dev/zero"
+            ]
+            ++ kvmfrDevices
+          )
+        }
+      '')
+    );
 
     # Set udev rules for shared memory of virtual displays (KVMFR)
     services.udev.packages = optionals hasAnyKvmfrDisplay [ udevPackage ];
