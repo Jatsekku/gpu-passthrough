@@ -1,5 +1,4 @@
 {
-  self,
   config,
   lib,
   pkgs,
@@ -8,8 +7,7 @@
 with lib;
 with types;
 let
-  cfg = config.hardware.pciPassthrough;
-  inherit (self.packages.${pkgs.system}) pci-passthrough;
+  cfg = config.hardware.pci-passthrough;
 
   # Module describing options for single PCI device
   deviceModule = submodule {
@@ -19,25 +17,35 @@ let
         default = null;
         description = "PCI device address i.e. 0000:0d:00.1";
       };
+
       id = mkOption {
         type = nullOr str;
         default = null;
         description = "PCI device id i.e. 10de:2482";
       };
+
       passthroughDriver = mkOption {
         type = nullOr str;
         default = "vfio-pci";
         description = "Driver used after unbinding original one";
       };
+
+      extraCmd = mkOption {
+        type = nullOr str;
+        default = "";
+        description = "Extra shell commands";
+      };
     };
   };
 
+  # Module describing options for PCI devices set
   devicesSetModule = submodule {
     options = {
       devices = mkOption {
         type = listOf deviceModule;
         default = [ ];
       };
+
       bindOnBoot = mkEnableOption "Bind devices during boot";
     };
   };
@@ -46,11 +54,11 @@ let
     devicesListName:
     let
       passDrv = pkgs.writeShellScriptBin "pci-passthrough-${devicesListName}-pass" ''
-        ${getExe pci-passthrough} ${devicesListName} pass
+        ${getExe cfg.package} ${devicesListName} pass
       '';
 
       unpassDrv = pkgs.writeShellScriptBin "pci-passthrough-${devicesListName}-unpass" ''
-        ${getExe pci-passthrough} ${devicesListName} unpass
+        ${getExe cfg.package} ${devicesListName} unpass
       '';
     in
     {
@@ -68,13 +76,20 @@ let
     if devicesIds == [ ] then [ ] else [ ("vfio-pci.ids=" + lib.concatStringsSep "," devicesIds) ];
 in
 {
-  options.hardware.pciPassthrough = {
+  options.hardware.pci-passthrough = {
     enable = mkEnableOption "PCI devices passthrough helper";
+
+    package = lib.mkOption {
+      type = lib.types.package;
+      description = "The pci-passthrough package to use.";
+    };
+
     devicesLists = mkOption {
       type = attrsOf devicesSetModule;
       default = { };
       description = "Set of PCI devices lists managed by PCI passthrough helper";
     };
+
     hooksFor = mkOption {
       type = attrs;
       readOnly = true;
@@ -104,6 +119,6 @@ in
     };
 
     # Write rules for script as JSON
-    environment.etc."gpu-passthrough/pci-passthrough.json".text = builtins.toJSON cfg.devicesLists;
+    environment.etc."pci-passthrough/pci-passthrough.json".text = builtins.toJSON cfg.devicesLists;
   };
 }
